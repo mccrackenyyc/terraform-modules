@@ -23,6 +23,18 @@ variable "vnet_address_space" {
   }
 }
 
+# Example subnet configuration:
+# subnets = {
+#   app = {
+#     subnet_name      = "myapp-dev-snet-app-abc"
+#     address_prefixes = ["10.0.1.0/24"]
+#   }
+#   data = {
+#     subnet_name       = "myapp-dev-snet-data-abc"
+#     address_prefixes  = ["10.0.2.0/24"]
+#     service_endpoints = ["Microsoft.Storage", "Microsoft.Sql"]
+#   }
+# }
 variable "subnets" {
   description = "Map of subnets to create"
   type = map(object({
