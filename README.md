@@ -57,6 +57,15 @@ templates/
 
 This repository is **Azure-only**. All modules are designed specifically for Microsoft Azure infrastructure.
 
+## Release Pipeline
+
+This repository uses automated releases via conventional commits. See [Conventional Commits](docs/conventional-commits.md) for details.
+
+### Pipeline Features
+- Validates changed modules on PRs
+- Automated releases on main branch merges
+- Semantic versioning with changelog generation
+
 ## Development
 
 ### Module Standards
