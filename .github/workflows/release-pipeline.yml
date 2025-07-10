@@ -56,7 +56,7 @@ jobs:
           echo "$CHANGED_FILES"
           
           # Extract unique module paths (templates/category/module-name)
-          CHANGED_MODULES=$(echo "$CHANGED_FILES" | grep -E '^templates/[^/]+/[^/]+/' | cut -d'/' -f1-3 | sort -u | jq -R . | jq -s .)
+          CHANGED_MODULES=$(echo "$CHANGED_FILES" | grep -E '^templates/[^/]+/[^/]+/' | cut -d'/' -f1-3 | sort -u | jq -R . | jq -s -c .)
           
           echo "modules=$CHANGED_MODULES" >> $GITHUB_OUTPUT
           echo "Changed modules: $CHANGED_MODULES"
