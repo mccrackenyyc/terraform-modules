@@ -270,6 +270,7 @@ subnets = map(object({
 - Private endpoint network policies are enabled by default for security
 - Service endpoints should only be enabled for required services
 - Consider using private endpoints for enhanced security over service endpoints
+- Consider using network security groups (NSGs) at the subnet level for additional traffic filtering
 - DNS servers default to Azure-provided DNS but can be customized for hybrid scenarios
 
 ## License
