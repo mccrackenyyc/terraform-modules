@@ -20,6 +20,11 @@ skip-check:
   - CKV_AZURE_35   # Network security group allows SSH from 0.0.0.0/0
   - CKV_AZURE_77   # Network security group allows RDP from 0.0.0.0/0
 
+  # Network Security Group Association
+  # NSG association is a consuming project responsibility
+  # Different applications require different NSG rule sets
+  - CKV2_AZURE_31  # Ensure VNET subnet is configured with a Network Security Group (NSG)
+
 framework:
   - terraform
 
