@@ -1,0 +1,36 @@
+# Checkov Security Scanning Configuration
+# Conservative skip rules for reusable Terraform modules
+
+skip-check:
+  # Storage Account Public Access Controls
+  # Modules should not enforce storage account public access policies
+  # Consuming projects must decide based on their security requirements
+  - CKV_AZURE_33   # Storage account allows public access
+  - CKV_AZURE_59   # Storage account allows public network access
+  
+  # Customer-Managed Key Requirements  
+  # Key management strategy is a consuming project responsibility
+  # Modules should support CMK but not enforce it
+  - CKV2_AZURE_1   # Storage account has customer-managed key
+  - CKV2_AZURE_8   # Storage account uses customer-managed key for encryption
+  
+  # Network Security Group Rules
+  # Modules may create NSG resources but consuming projects define specific rules
+  # SSH/RDP access policies are application-specific decisions
+  - CKV_AZURE_35   # Network security group allows SSH from 0.0.0.0/0
+  - CKV_AZURE_77   # Network security group allows RDP from 0.0.0.0/0
+
+framework:
+  - terraform
+
+# Output configuration
+output: cli
+compact: true
+quiet: false
+
+# Directory scanning
+directory: .
+
+# Additional settings
+download-external-modules: false
+evaluate-variables: true
