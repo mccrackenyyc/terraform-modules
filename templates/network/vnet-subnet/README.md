@@ -1,6 +1,6 @@
 # VNet + Subnets Module
 
-This module creates an Azure Virtual Network with multiple subnets. It's designed to be flexible and support various subnet configurations including private endpoints, service endpoints, and subnet delegation. 
+This module creates an Azure Virtual Network with multiple subnets. It's designed to be flexible and support various subnet configurations including private endpoints, service endpoints, and subnet delegation.
 
 ## Features
 
