@@ -66,6 +66,40 @@ This repository uses automated releases via conventional commits. See [Conventio
 - Automated releases on main branch merges
 - Semantic versioning with changelog generation
 
+### Authentication Requirements
+
+**Important**: The release pipeline requires a Personal Access Token (PAT) for protected branch access.
+
+#### Why PAT is Required
+
+semantic-release needs to push changelog commits and create releases on protected branches. The default `GITHUB_TOKEN` has insufficient permissions for these operations on protected branches.
+
+#### Setting Up Authentication
+
+1. **Create a Fine-Grained Personal Access Token**:
+   - Go to [GitHub Fine-Grained Personal Access Tokens](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens#creating-a-fine-grained-personal-access-token)
+   - Set repository access to this repository only
+   - Configure the following **Repository permissions**:
+     - **Contents**: Read and write *(for pushing changelog commits)*
+     - **Metadata**: Read *(for repository information)*
+     - **Issues**: Write *(for linking releases to issues)*
+     - **Pull requests**: Write *(for updating PR statuses)*
+     - **Actions**: Read *(for workflow context)*
+
+2. **Add Token as Repository Secret**:
+   - Go to repository **Settings → Secrets and variables → Actions**
+   - Create new repository secret named `SEMANTIC_RELEASE_TOKEN`
+   - Paste your PAT as the value
+
+3. **Configure Branch Protection**:
+   - Ensure **"Allow specified actors to bypass required pull requests"** is enabled
+   - Add users with repository admin role to the bypass list
+
+### Pipeline Features
+- Validates changed modules on PRs
+- Automated releases on main branch merges
+- Semantic versioning with changelog generation
+
 ## Development
 
 ### Module Standards
