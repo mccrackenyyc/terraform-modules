@@ -12,19 +12,6 @@
 
 * **ci:** add automated release pipeline ([#12](https://github.com/mccrackenyyc/terraform-modules/issues/12)) ([81dba39](https://github.com/mccrackenyyc/terraform-modules/commit/81dba39175996c867f2a711aee28d469c7bbe315))
 
-# Changelog
-
-All notable changes to this project will be documented in this file.
-
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-
-## [Unreleased]
-
-### Added
-- Automated release pipeline with semantic versioning
-- TFLint configuration with Azure-specific rules
-- Conventional commits documentation
 
 ## [1.0.0] - 2025-07-07
 
