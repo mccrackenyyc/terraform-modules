@@ -1,4 +1,4 @@
-name: Release Pipeline
+name: Validation and Release Pipeline
 
 on:
   pull_request:
@@ -61,6 +61,16 @@ jobs:
           echo "modules=$CHANGED_MODULES" >> $GITHUB_OUTPUT
           echo "Changed modules: $CHANGED_MODULES"
 
+      - name: Changes Summary
+        run: |
+          if [ "${{ steps.changes.outputs.has-changes }}" = "true" ]; then
+            echo "### Changed Modules" >> $GITHUB_STEP_SUMMARY
+            echo '${{ steps.changes.outputs.modules }}' | jq -r '.[] | "- " + .' >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "ℹ️ No module changes detected - pipeline skipped" >> $GITHUB_STEP_SUMMARY
+          fi
+
   validate:
     name: Validate Changed Modules
     runs-on: ubuntu-latest
@@ -82,6 +92,7 @@ jobs:
         uses: terraform-linters/setup-tflint@v3
 
       - name: Terraform Format Check
+        id: terraform-fmt
         run: terraform fmt -check -recursive
         working-directory: ${{ matrix.module }}
 
@@ -90,13 +101,18 @@ jobs:
         working-directory: ${{ matrix.module }}
 
       - name: Install TFLint plugins
+        id: tflint-init
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: tflint --init
 
       - name: TFLint
+        id: tflint
         run: tflint --recursive
         working-directory: ${{ matrix.module }}
 
       - name: Run Checkov Security Scan
+        id: checkov
         uses: bridgecrewio/checkov-action@v12
         with:
           directory: ${{ matrix.module }}
@@ -105,8 +121,24 @@ jobs:
           config_file: .checkov.yml
 
       - name: Terraform Validate
+        id: terraform-validate
         run: terraform validate
         working-directory: ${{ matrix.module }}
+
+      - name: Module Validation Summary
+        if: always()
+        run: |
+          echo "### Validation Results" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.terraform-fmt.outcome }}" = "success" ] && \
+             [ "${{ steps.tflint-init.outcome }}" = "success" ] && \
+             [ "${{ steps.tflint.outcome }}" = "success" ] && \
+             [ "${{ steps.checkov.outcome }}" = "success" ] && \
+             [ "${{ steps.terraform-validate.outcome }}" = "success" ]; then
+            echo "✅ All modules passed validation" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Validation failed" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
 
   release:
     name: Create Release
@@ -135,44 +167,17 @@ jobs:
           npm install -g semantic-release @semantic-release/changelog @semantic-release/git @semantic-release/github
 
       - name: Run semantic-release
+        id: semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.SEMANTIC_RELEASE_TOKEN }}
         run: semantic-release
 
-  summary:
-    name: Pipeline Summary
-    runs-on: ubuntu-latest
-    needs: [detect-changes, validate, release]
-    if: always()
-    steps:
-      - name: Generate Summary
+      - name: Release Summary
+        if: always()
         run: |
-          echo "## Release Pipeline Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          
-          if [ "${{ needs.detect-changes.outputs.has-changes }}" = "true" ]; then
-            echo "### Changed Modules" >> $GITHUB_STEP_SUMMARY
-            echo '${{ needs.detect-changes.outputs.changed-modules }}' | jq -r '.[] | "- " + .' >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            
-            echo "### Validation Results" >> $GITHUB_STEP_SUMMARY
-            if [ "${{ needs.validate.result }}" = "success" ]; then
-              echo "✅ All modules passed validation" >> $GITHUB_STEP_SUMMARY
-            else
-              echo "❌ Validation failed" >> $GITHUB_STEP_SUMMARY
-            fi
-            echo "" >> $GITHUB_STEP_SUMMARY
-            
-            if [ "${{ github.event_name }}" = "push" ] && [ "${{ github.ref }}" = "refs/heads/main" ]; then
-              echo "### Release Results" >> $GITHUB_STEP_SUMMARY
-              if [ "${{ needs.release.result }}" = "success" ]; then
-                echo "✅ Release created successfully" >> $GITHUB_STEP_SUMMARY
-              elif [ "${{ needs.release.result }}" = "skipped" ]; then
-                echo "ℹ️ No release created (no conventional commits)" >> $GITHUB_STEP_SUMMARY
-              else
-                echo "❌ Release failed" >> $GITHUB_STEP_SUMMARY
-              fi
-            fi
+          echo "### Release Results" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.semantic-release.outcome }}" = "success" ]; then
+            echo "✅ Release created successfully" >> $GITHUB_STEP_SUMMARY
           else
-            echo "ℹ️ No module changes detected - pipeline skipped" >> $GITHUB_STEP_SUMMARY
+            echo "❌ Release failed" >> $GITHUB_STEP_SUMMARY
           fi
