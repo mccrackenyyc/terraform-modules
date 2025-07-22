@@ -1,0 +1,349 @@
+name: Validation and Release Pipeline
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'templates/**'
+      - '.checkov.yml'
+      - '.tflint.hcl'
+  push:
+    branches: [main]
+    paths:
+      - 'templates/**'
+      - '.checkov.yml'
+      - '.tflint.hcl'
+  workflow_dispatch:
+
+env:
+  TF_VERSION: '1.12.0'
+
+jobs:
+  # ================================
+  # 📌 Stage 1: Change Detection
+  # ================================
+
+  detect-module-changes:
+    name: Detect Changed Modules
+    runs-on: ubuntu-latest
+    outputs:
+      changed-modules: ${{ steps.module-changes.outputs.modules }}
+      has-module-changes: ${{ steps.module-changes.outputs.has-module-changes }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect changed modules
+        id: module-changes
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          else
+            # For push events, compare with previous commit
+            BASE_SHA="HEAD~1"
+          fi
+          
+          # Get changed files in templates directory
+          CHANGED_FILES=$(git diff --name-only $BASE_SHA HEAD -- templates/ || echo "")
+          
+          if [ -z "$CHANGED_FILES" ]; then
+            echo "has-module-changes=false" >> $GITHUB_OUTPUT
+            echo "modules=[]" >> $GITHUB_OUTPUT
+            echo "No changes detected in templates/"
+            exit 0
+          fi
+          
+          echo "has-module-changes=true" >> $GITHUB_OUTPUT
+          echo "Changed files:"
+          echo "$CHANGED_FILES"
+          
+          # Extract unique module paths (templates/category/module-name)
+          CHANGED_MODULES=$(echo "$CHANGED_FILES" | grep -E '^templates/[^/]+/[^/]+/' | cut -d'/' -f1-3 | sort -u | jq -R . | jq -s -c .)
+          
+          echo "modules=$CHANGED_MODULES" >> $GITHUB_OUTPUT
+          echo "Changed modules: $CHANGED_MODULES"
+
+      - name: Changes Summary
+        run: |
+          if [ "${{ steps.module-changes.outputs.has-module-changes }}" = "true" ]; then
+            echo "### Changed Modules" >> $GITHUB_STEP_SUMMARY
+            echo '${{ steps.module-changes.outputs.modules }}' | jq -r '.[] | "- " + .' >> $GITHUB_STEP_SUMMARY
+          else
+            echo "ℹ️ No module changes detected" >> $GITHUB_STEP_SUMMARY
+          fi
+
+  detect-rule-changes:
+    name: Detect Rule Changes
+    runs-on: ubuntu-latest
+    outputs:
+      has-rule-changes: ${{ steps.rule-changes.outputs.has-rule-changes }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect rule changes
+        id: rule-changes
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          else
+            # For push events, compare with previous commit
+            BASE_SHA="HEAD~1"
+          fi
+          
+          # Check for rule file changes
+          RULE_CHANGES=$(git diff --name-only $BASE_SHA HEAD -- .tflint.hcl .checkov.yml || echo "")
+          
+          if [ -z "$RULE_CHANGES" ]; then
+            echo "has-rule-changes=false" >> $GITHUB_OUTPUT
+            echo "No rule changes detected"
+          else
+            echo "has-rule-changes=true" >> $GITHUB_OUTPUT
+            echo "Changed rule files:"
+            echo "$RULE_CHANGES"
+          fi
+
+      - name: Changes Summary
+        run: |
+          if [ "${{ steps.rule-changes.outputs.has-rule-changes }}" = "true" ]; then
+            echo "### Rule Changes Detected" >> $GITHUB_STEP_SUMMARY
+            echo "**Note**: Rule changes will trigger validation of ALL modules" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "ℹ️ No rule changes detected" >> $GITHUB_STEP_SUMMARY
+          fi
+
+  enumerate-all-modules:
+    name: Get All Modules
+    runs-on: ubuntu-latest
+    outputs:
+      modules: ${{ steps.enumerate.outputs.modules }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Enumerate all modules
+        id: enumerate
+        run: |
+          echo "Enumerating all modules in templates/"
+          
+          # Find all module directories (templates/category/module-name)
+          ALL_MODULES=$(find templates -mindepth 2 -maxdepth 2 -type d | sort)
+          
+          if [ -z "$ALL_MODULES" ]; then
+            echo "modules=[]" >> $GITHUB_OUTPUT
+            echo "No modules found"
+          else
+            # Convert to JSON array
+            MODULES_JSON=$(echo "$ALL_MODULES" | jq -R . | jq -s -c .)
+            echo "modules=$MODULES_JSON" >> $GITHUB_OUTPUT
+            echo "Found modules:"
+            echo "$ALL_MODULES"
+          fi
+
+      - name: Module Summary
+        run: |
+          echo "### All Available Modules" >> $GITHUB_STEP_SUMMARY
+          if [ '${{ steps.enumerate.outputs.modules }}' != "[]" ]; then
+            echo '${{ steps.enumerate.outputs.modules }}' | jq -r '.[] | "- " + .' >> $GITHUB_STEP_SUMMARY
+          else
+            echo "No modules found" >> $GITHUB_STEP_SUMMARY
+          fi
+
+  # ================================
+  # 📌 Stage 2: Validation
+  # ================================
+
+  terraform-fmt:
+    name: Terraform Format
+    runs-on: ubuntu-latest
+    needs: [detect-module-changes, detect-rule-changes, enumerate-all-modules]
+    if: needs.detect-module-changes.outputs.has-module-changes == 'true' || needs.detect-rule-changes.outputs.has-rule-changes == 'true'
+    strategy:
+      matrix:
+        module: ${{ needs.detect-rule-changes.outputs.has-rule-changes == 'true' && fromJson(needs.enumerate-all-modules.outputs.modules) || fromJson(needs.detect-module-changes.outputs.changed-modules) }}
+      fail-fast: false
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform Format Check
+        id: terraform-fmt
+        run: terraform fmt -check -recursive
+        working-directory: ${{ matrix.module }}
+
+      - name: Format Validation Summary
+        if: always()
+        run: |
+          echo "### Format Validation Results" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.terraform-fmt.outcome }}" = "success" ]; then
+            echo "✅ Format validation passed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Format validation failed" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+  terraform-validate:
+    name: Terraform Validate
+    runs-on: ubuntu-latest
+    needs: [detect-module-changes, detect-rule-changes, enumerate-all-modules]
+    if: needs.detect-module-changes.outputs.has-module-changes == 'true' || needs.detect-rule-changes.outputs.has-rule-changes == 'true'
+    strategy:
+      matrix:
+        module: ${{ needs.detect-rule-changes.outputs.has-rule-changes == 'true' && fromJson(needs.enumerate-all-modules.outputs.modules) || fromJson(needs.detect-module-changes.outputs.changed-modules) }}
+      fail-fast: false
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform Init
+        id: terraform-init
+        run: terraform init -backend=false
+        working-directory: ${{ matrix.module }}
+
+      - name: Terraform Validate
+        id: terraform-validate
+        run: terraform validate
+        working-directory: ${{ matrix.module }}
+
+      - name: Validation Summary
+        if: always()
+        run: |
+          echo "### Terraform Validation Results" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.terraform-validate.outcome }}" = "success" ]; then
+            echo "✅ Terraform validation passed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Terraform validation failed" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+  tflint:
+    name: TFLint
+    runs-on: ubuntu-latest
+    needs: [detect-module-changes, detect-rule-changes, enumerate-all-modules]
+    if: needs.detect-module-changes.outputs.has-module-changes == 'true' || needs.detect-rule-changes.outputs.has-rule-changes == 'true'
+    strategy:
+      matrix:
+        module: ${{ needs.detect-rule-changes.outputs.has-rule-changes == 'true' && fromJson(needs.enumerate-all-modules.outputs.modules) || fromJson(needs.detect-module-changes.outputs.changed-modules) }}
+      fail-fast: false
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup TFLint
+        uses: terraform-linters/setup-tflint@v3
+
+      - name: Install TFLint plugins
+        id: tflint-init
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: tflint --init
+
+      - name: Run TFLint
+        id: tflint
+        run: tflint --recursive
+        working-directory: ${{ matrix.module }}
+
+      - name: TFLint Summary
+        if: always()
+        run: |
+          echo "### TFLint Results" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.tflint-init.outcome }}" = "success" ] && \
+             [ "${{ steps.tflint.outcome }}" = "success" ]; then
+            echo "✅ TFLint validation passed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ TFLint validation failed" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+  checkov:
+    name: Checkov Security Scan
+    runs-on: ubuntu-latest
+    needs: [detect-module-changes, detect-rule-changes, enumerate-all-modules]
+    if: needs.detect-module-changes.outputs.has-module-changes == 'true' || needs.detect-rule-changes.outputs.has-rule-changes == 'true'
+    strategy:
+      matrix:
+        module: ${{ needs.detect-rule-changes.outputs.has-rule-changes == 'true' && fromJson(needs.enumerate-all-modules.outputs.modules) || fromJson(needs.detect-module-changes.outputs.changed-modules) }}
+      fail-fast: false
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run Checkov Security Scan
+        id: checkov
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          directory: ${{ matrix.module }}
+          framework: terraform
+          output_format: cli
+          config_file: .checkov.yml
+
+      - name: Checkov Summary
+        if: always()
+        run: |
+          echo "### Checkov Security Results" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.checkov.outcome }}" = "success" ]; then
+            echo "✅ Security scan passed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Security scan failed" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+  # ================================
+  # 📌 Stage 3: Release
+  # ================================
+
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    needs: [detect-module-changes, terraform-fmt, terraform-validate, tflint, checkov]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.detect-module-changes.outputs.has-module-changes == 'true'
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.SEMANTIC_RELEASE_TOKEN }}
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install semantic-release
+        run: |
+          npm install -g semantic-release @semantic-release/changelog @semantic-release/git @semantic-release/github
+
+      - name: Run semantic-release
+        id: semantic-release
+        env:
+          GITHUB_TOKEN: ${{ secrets.SEMANTIC_RELEASE_TOKEN }}
+        run: semantic-release
+
+      - name: Release Summary
+        if: always()
+        run: |
+          echo "### Release Results" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.semantic-release.outcome }}" = "success" ]; then
+            echo "✅ Release created successfully" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Release failed" >> $GITHUB_STEP_SUMMARY
+          fi
