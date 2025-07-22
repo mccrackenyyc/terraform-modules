@@ -62,9 +62,10 @@ This repository is **Azure-only**. All modules are designed specifically for Mic
 This repository uses automated releases via conventional commits. See [Conventional Commits](docs/conventional-commits.md) for details.
 
 ### Pipeline Features
-- Validates changed modules on PRs
-- Automated releases on main branch merges
-- Semantic versioning with changelog generation
+- **Change Detection**: Validates only changed modules on PRs for efficiency
+- **Parallel Validation**: Independent validation jobs for faster feedback
+- **Rule Change Handling**: Re-validates all modules when linting/security rules change
+- **Automated Releases**: Semantic versioning with changelog generation on main branch merges
 
 ### Authentication Requirements
 
@@ -94,11 +95,6 @@ semantic-release needs to push changelog commits and create releases on protecte
 3. **Configure Branch Protection**:
    - Ensure **"Allow specified actors to bypass required pull requests"** is enabled
    - Add users with repository admin role to the bypass list
-
-### Pipeline Features
-- Validates changed modules on PRs
-- Automated releases on main branch merges
-- Semantic versioning with changelog generation
 
 ## Development
 

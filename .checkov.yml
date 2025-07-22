@@ -8,7 +8,7 @@ skip-check:
   - CKV_AZURE_33   # Storage account allows public access
   - CKV_AZURE_59   # Storage account allows public network access
   
-  # Customer-Managed Key Requirements  
+  # Customer-Managed Key Requirements
   # Key management strategy is a consuming project responsibility
   # Modules should support CMK but not enforce it
   - CKV2_AZURE_1   # Storage account has customer-managed key
