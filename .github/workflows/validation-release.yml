@@ -111,7 +111,7 @@ jobs:
         run: |
           if [ "${{ steps.rule-changes.outputs.has-rule-changes }}" = "true" ]; then
             echo "### Rule Changes Detected" >> $GITHUB_STEP_SUMMARY
-            echo "**Note**: Rule changes will trigger validation of ALL modules" >> $GITHUB_STEP_SUMMARY
+            echo "All modules will be re-validated" >> $GITHUB_STEP_SUMMARY
           else
             echo "ℹ️ No rule changes detected" >> $GITHUB_STEP_SUMMARY
           fi
