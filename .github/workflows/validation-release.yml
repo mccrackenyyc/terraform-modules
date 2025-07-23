@@ -160,11 +160,11 @@ jobs:
   terraform-fmt:
     name: Terraform Format
     runs-on: ubuntu-latest
-    needs: [detect-module-changes, detect-rule-changes, enumerate-all-modules]
-    if: needs.detect-module-changes.outputs.has-module-changes == 'true' || needs.detect-rule-changes.outputs.has-rule-changes == 'true'
+    needs: [detect-module-changes]
+    if: needs.detect-module-changes.outputs.has-module-changes == 'true'
     strategy:
       matrix:
-        module: ${{ needs.detect-rule-changes.outputs.has-rule-changes == 'true' && fromJson(needs.enumerate-all-modules.outputs.modules) || fromJson(needs.detect-module-changes.outputs.changed-modules) }}
+        module: ${{ fromJson(needs.detect-module-changes.outputs.changed-modules) }}
       fail-fast: false
     steps:
       - name: Checkout
@@ -194,11 +194,11 @@ jobs:
   terraform-validate:
     name: Terraform Validate
     runs-on: ubuntu-latest
-    needs: [detect-module-changes, detect-rule-changes, enumerate-all-modules]
-    if: needs.detect-module-changes.outputs.has-module-changes == 'true' || needs.detect-rule-changes.outputs.has-rule-changes == 'true'
+    needs: [detect-module-changes]
+    if: needs.detect-module-changes.outputs.has-module-changes == 'true'
     strategy:
       matrix:
-        module: ${{ needs.detect-rule-changes.outputs.has-rule-changes == 'true' && fromJson(needs.enumerate-all-modules.outputs.modules) || fromJson(needs.detect-module-changes.outputs.changed-modules) }}
+        module: ${{ fromJson(needs.detect-module-changes.outputs.changed-modules) }}
       fail-fast: false
     steps:
       - name: Checkout
@@ -227,6 +227,55 @@ jobs:
             echo "✅ Terraform validation passed" >> $GITHUB_STEP_SUMMARY
           else
             echo "❌ Terraform validation failed" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+  terraform-docs:
+    name: Documentation Validation
+    runs-on: ubuntu-latest
+    needs: [detect-module-changes]
+    if: needs.detect-module-changes.outputs.has-module-changes == 'true'
+    strategy:
+      matrix:
+        module: ${{ fromJson(needs.detect-module-changes.outputs.changed-modules) }}
+      fail-fast: false
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup terraform-docs
+        uses: terraform-docs/gh-actions@v1.2.0
+        with:
+          working-dir: ${{ matrix.module }}
+          output-file: README.md
+          output-method: inject
+          git-push: false
+
+      - name: Validate documentation is current
+        id: docs-validation
+        run: |
+          cd ${{ matrix.module }}
+          
+          # Generate fresh documentation
+          terraform-docs -c ../../../.terraform-docs.yml .
+          
+          # Check if README.md has uncommitted changes
+          if ! git diff --exit-code README.md; then
+            echo "❌ Documentation is outdated. Run 'terraform-docs -c ../../../.terraform-docs.yml .' in ${{ matrix.module }} and commit the changes."
+            exit 1
+          fi
+          
+          echo "✅ Documentation is current"
+
+      - name: Documentation Validation Summary
+        if: always()
+        run: |
+          echo "### Documentation Validation Results" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.docs-validation.outcome }}" = "success" ]; then
+            echo "✅ Documentation validation passed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Documentation validation failed" >> $GITHUB_STEP_SUMMARY
+            echo "Run 'terraform-docs -c ../../../.terraform-docs.yml .' in affected modules and commit changes" >> $GITHUB_STEP_SUMMARY
           fi
           echo "" >> $GITHUB_STEP_SUMMARY
 

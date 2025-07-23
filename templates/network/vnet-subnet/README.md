@@ -5,12 +5,10 @@ This module creates an Azure Virtual Network with multiple subnets. It's designe
 ## Features
 
 - Creates a single Virtual Network with multiple subnets
-- Support for private endpoint network policies configuration
+- Support for private endpoint network policies configuration (enabled by default for security)
 - Optional service endpoints for Azure PaaS integration
 - Optional subnet delegation for specialized services
-- Comprehensive input validation for business logic
-- Flexible tagging support
-- Enterprise-grade reusability across projects
+- Comprehensive input validation and flexible tagging support
 
 ## Usage
 
@@ -185,93 +183,56 @@ subnets = {
 }
 ```
 
+<!-- BEGIN_TF_DOCS -->
 ## Requirements
 
 | Name | Version |
 |------|---------|
-| terraform | >= 1.12 |
-| azurerm | ~> 4.0 |
+| <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >= 1.12 |
+| <a name="requirement_azurerm"></a> [azurerm](#requirement\_azurerm) | ~> 4.0 |
 
 ## Providers
 
 | Name | Version |
 |------|---------|
-| azurerm | ~> 4.0 |
+| <a name="provider_azurerm"></a> [azurerm](#provider\_azurerm) | ~> 4.0 |
+
+## Modules
+
+No modules.
 
 ## Resources
 
 | Name | Type |
 |------|------|
-| [azurerm_virtual_network.main](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/virtual_network) | resource |
 | [azurerm_subnet.subnets](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/subnet) | resource |
+| [azurerm_virtual_network.main](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/virtual_network) | resource |
 
 ## Inputs
 
 | Name | Description | Type | Default | Required |
 |------|-------------|------|---------|:--------:|
-| resource_group_name | Name of the resource group | `string` | n/a | yes |
-| location | Azure region for resources | `string` | n/a | yes |
-| vnet_name | Name of the virtual network | `string` | n/a | yes |
-| vnet_address_space | Address space for the virtual network | `list(string)` | n/a | yes |
-| subnets | Map of subnets to create | `map(object({...}))` | n/a | yes |
-| dns_servers | List of DNS servers for the VNet | `list(string)` | `[]` | no |
-| tags | Tags to apply to resources | `map(string)` | `{}` | no |
-
-### Subnet Object Structure
-
-```hcl
-subnets = map(object({
-  subnet_name                       = string                # Required
-  address_prefixes                  = list(string)          # Required
-  private_endpoint_network_policies = optional(string, "Enabled")
-  service_endpoints                 = optional(list(string), [])
-  delegation = optional(object({
-    name = string
-    service_delegation = object({
-      name    = string
-      actions = optional(list(string), [])
-    })
-  }), null)
-}))
-```
+| <a name="input_dns_servers"></a> [dns\_servers](#input\_dns\_servers) | List of DNS servers for the VNet | `list(string)` | `[]` | no |
+| <a name="input_location"></a> [location](#input\_location) | Azure region for resources | `string` | n/a | yes |
+| <a name="input_resource_group_name"></a> [resource\_group\_name](#input\_resource\_group\_name) | Name of the resource group | `string` | n/a | yes |
+| <a name="input_subnets"></a> [subnets](#input\_subnets) | Map of subnets to create | <pre>map(object({<br/>    subnet_name                       = string<br/>    address_prefixes                  = list(string)<br/>    private_endpoint_network_policies = optional(string, "Enabled")<br/>    service_endpoints                 = optional(list(string), [])<br/>    delegation = optional(object({<br/>      name = string<br/>      service_delegation = object({<br/>        name    = string<br/>        actions = optional(list(string), [])<br/>      })<br/>    }), null)<br/>  }))</pre> | n/a | yes |
+| <a name="input_tags"></a> [tags](#input\_tags) | Tags to apply to resources | `map(string)` | `{}` | no |
+| <a name="input_vnet_address_space"></a> [vnet\_address\_space](#input\_vnet\_address\_space) | Address space for the virtual network | `list(string)` | n/a | yes |
+| <a name="input_vnet_name"></a> [vnet\_name](#input\_vnet\_name) | Name of the virtual network | `string` | n/a | yes |
 
 ## Outputs
 
 | Name | Description |
 |------|-------------|
-| vnet_id | ID of the virtual network |
-| vnet_name | Name of the virtual network |
-| vnet_address_space | Address space of the virtual network |
-| vnet_location | Location of the virtual network |
-| vnet_resource_group_name | Resource group name of the virtual network |
-| subnet_ids | Map of subnet keys to their IDs |
-| subnet_names | Map of subnet keys to their names |
-| subnet_address_prefixes | Map of subnet keys to their address prefixes |
-
-## Common Service Endpoints
-
-- `Microsoft.Storage` - Azure Storage Account
-- `Microsoft.Sql` - Azure SQL Database
-- `Microsoft.Web` - Azure App Service
-- `Microsoft.KeyVault` - Azure Key Vault
-- `Microsoft.EventHub` - Azure Event Hubs
-- `Microsoft.ServiceBus` - Azure Service Bus
-- `Microsoft.CosmosDB` - Azure Cosmos DB
-
-## Validation Rules
-
-- At least one address space must be specified for the VNet
-- At least one subnet must be defined
-- Subnet address prefixes must be valid CIDR blocks within VNet address space
-- Service endpoints must be valid Azure service endpoints
-
-## Security Considerations
-
-- Private endpoint network policies are enabled by default for security
-- Service endpoints should only be enabled for required services
-- Consider using private endpoints for enhanced security over service endpoints
-- Consider using network security groups (NSGs) at the subnet level for additional traffic filtering
-- DNS servers default to Azure-provided DNS but can be customized for hybrid scenarios
+| <a name="output_subnet_address_prefixes"></a> [subnet\_address\_prefixes](#output\_subnet\_address\_prefixes) | Map of subnet names to their address prefixes |
+| <a name="output_subnet_ids"></a> [subnet\_ids](#output\_subnet\_ids) | Map of subnet names to their IDs |
+| <a name="output_subnet_names"></a> [subnet\_names](#output\_subnet\_names) | Map of subnet keys to their names |
+| <a name="output_vnet_address_space"></a> [vnet\_address\_space](#output\_vnet\_address\_space) | Address space of the virtual network |
+| <a name="output_vnet_id"></a> [vnet\_id](#output\_vnet\_id) | ID of the virtual network |
+| <a name="output_vnet_location"></a> [vnet\_location](#output\_vnet\_location) | Location of the virtual network |
+| <a name="output_vnet_name"></a> [vnet\_name](#output\_vnet\_name) | Name of the virtual network |
+| <a name="output_vnet_resource_group_name"></a> [vnet\_resource\_group\_name](#output\_vnet\_resource\_group\_name) | Resource group name of the virtual network |
+<!-- END_TF_DOCS -->
 
 ## License
 

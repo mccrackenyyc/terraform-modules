@@ -98,6 +98,18 @@ semantic-release needs to push changelog commits and create releases on protecte
 
 ## Development
 
+### Module Documentation
+
+This project requires [terraform-docs](https://terraform-docs.io/user-guide/installation/) for automatic documentation generation.
+
+**Workflow**:
+1. Make module changes (.tf files)
+2. Run `terraform-docs .` in the module directory  
+3. Commit both code and documentation changes
+4. Pipeline validates docs are current (fails if outdated)
+
+**Note**: Do not manually edit content between `<!-- BEGIN_TF_DOCS -->` and `<!-- END_TF_DOCS -->` markers.
+
 ### Module Standards
 - Follow Azure CAF naming conventions
 - Include comprehensive variable validation
