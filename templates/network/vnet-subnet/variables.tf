@@ -63,3 +63,9 @@ variable "tags" {
   type        = map(string)
   default     = {}
 }
+
+variable "test" {
+  description = "test for terraform-docs"
+  type        = map(string)
+  default     = {}
+}
