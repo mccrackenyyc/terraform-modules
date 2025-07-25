@@ -2,7 +2,7 @@ name: Module Documentation Pipeline
 
 on:
   pull_request:
-    branches: [main]
+   # branches: [main]
     paths:
       - 'templates/**/*.tf'
   workflow_dispatch:
