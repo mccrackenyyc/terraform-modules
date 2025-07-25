@@ -1,6 +1,7 @@
 name: Module Documentation Pipeline
 
 on:
+  push:
   pull_request:
    # branches: [main]
     # paths:
