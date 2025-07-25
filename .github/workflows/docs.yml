@@ -2,10 +2,10 @@ name: Module Documentation Pipeline
 
 on:
   push:
-  pull_request:
-   # branches: [main]
-    # paths:
-    #   - 'templates/**/*.tf'
+    paths:
+      - 'templates/**/*.tf'
+      - '.terraform-docs.yml'
+      - '.github/workflows/docs.yml'
   workflow_dispatch:
 
 env:
