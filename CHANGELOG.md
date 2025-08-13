@@ -1,3 +1,10 @@
+# [1.2.0](https://github.com/mccrackenyyc/terraform-modules/compare/v1.1.0...v1.2.0) (2025-08-13)
+
+
+### Features
+
+* **ci:** add Checkov security scanning to validation pipeline ([#24](https://github.com/mccrackenyyc/terraform-modules/issues/24)) ([11a1968](https://github.com/mccrackenyyc/terraform-modules/commit/11a1968322a927c921d7e5d6954cf5b7c9dc8cf4))
+
 # [1.1.0](https://github.com/mccrackenyyc/terraform-modules/compare/v1.0.0...v1.1.0) (2025-07-11)
 
 
