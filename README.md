@@ -57,19 +57,24 @@ templates/
 
 This repository is **Azure-only**. All modules are designed specifically for Microsoft Azure infrastructure.
 
-## Release Pipeline
+## Pipelines
 
-This repository uses automated releases via conventional commits. See [Conventional Commits](docs/conventional-commits.md) for details.
+This repository uses automated pipelines for documentation, validation, and releases.
 
-### Pipeline Features
+### Documentation Pipeline
+- **Auto-Generation**: Commits updated module documentation to PRs when .tf files change
+
+### Validation and Release Pipeline  
 - **Change Detection**: Validates only changed modules on PRs for efficiency
 - **Parallel Validation**: Independent validation jobs for faster feedback
 - **Rule Change Handling**: Re-validates all modules when linting/security rules change
 - **Automated Releases**: Semantic versioning with changelog generation on main branch merges
 
+See [Conventional Commits](docs/conventional-commits.md) for commit format details.
+
 ### Authentication Requirements
 
-**Important**: The release pipeline requires a Personal Access Token (PAT) for protected branch access.
+**Important**: The validation and release pipeline requires a Personal Access Token (PAT) for protected branch access.
 
 #### Why PAT is Required
 

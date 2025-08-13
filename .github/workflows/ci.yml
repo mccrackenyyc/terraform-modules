@@ -1,18 +1,10 @@
-name: Validation and Release Pipeline
+name: CI Pipeline
 
 on:
+  push:
+    branches: ['**']
   pull_request:
     branches: [main]
-    paths:
-      - 'templates/**'
-      - '.checkov.yml'
-      - '.tflint.hcl'
-  push:
-    branches: [main]
-    paths:
-      - 'templates/**'
-      - '.checkov.yml'
-      - '.tflint.hcl'
   workflow_dispatch:
 
 env:
@@ -303,47 +295,44 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
 
   # ================================
-  # 📌 Stage 3: Release
+  # 📌 Stage 3: Documentation
   # ================================
 
-  release:
-    name: Create Release
+  generate-docs:
+    name: Generate Documentation
     runs-on: ubuntu-latest
-    needs: [detect-module-changes, terraform-fmt, terraform-validate, tflint, checkov]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.detect-module-changes.outputs.has-module-changes == 'true'
-    permissions:
-      contents: write
-      issues: write
-      pull-requests: write
+    needs: [detect-module-changes]
+    if: needs.detect-module-changes.outputs.has-module-changes == 'true'
+    strategy:
+      matrix:
+        module: ${{ fromJson(needs.detect-module-changes.outputs.changed-modules) }}
+      max-parallel: 1
+      fail-fast: false
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          ref: ${{ github.event.pull_request.head.ref }}
           fetch-depth: 0
-          token: ${{ secrets.SEMANTIC_RELEASE_TOKEN }}
-          persist-credentials: false
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Generate terraform-docs
+        uses: terraform-docs/gh-actions@v1.2.0
         with:
-          node-version: '20'
+          working-dir: ${{ matrix.module }}
+          output-file: README.md
+          output-method: inject
+          git-push: true
+          git-commit-message: "docs(${{ matrix.module }}): update module documentation"
 
-      - name: Install semantic-release
-        run: |
-          npm install -g semantic-release @semantic-release/changelog @semantic-release/git @semantic-release/github
-
-      - name: Run semantic-release
-        id: semantic-release
-        env:
-          GITHUB_TOKEN: ${{ secrets.SEMANTIC_RELEASE_TOKEN }}
-        run: semantic-release
-
-      - name: Release Summary
+      - name: Documentation Summary
         if: always()
         run: |
-          echo "### Release Results" >> $GITHUB_STEP_SUMMARY
-          if [ "${{ steps.semantic-release.outcome }}" = "success" ]; then
-            echo "✅ Release created successfully" >> $GITHUB_STEP_SUMMARY
+          echo "### Documentation Generation Results" >> $GITHUB_STEP_SUMMARY
+          echo "Module: ${{ matrix.module }}" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ job.status }}" = "success" ]; then
+            echo "✅ Documentation updated successfully" >> $GITHUB_STEP_SUMMARY
           else
-            echo "❌ Release failed" >> $GITHUB_STEP_SUMMARY
+            echo "❌ Documentation generation failed" >> $GITHUB_STEP_SUMMARY
           fi
+          echo "" >> $GITHUB_STEP_SUMMARY

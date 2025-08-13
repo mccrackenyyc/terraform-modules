@@ -1,0 +1,49 @@
+name: Release Pipeline
+
+on:
+  workflow_run:
+    workflows: ["CI Pipeline"]
+    types: [completed]
+    branches: [main]
+
+jobs:
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    if: github.event.workflow_run.conclusion == 'success'
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.SEMANTIC_RELEASE_TOKEN }}
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install semantic-release
+        run: |
+          npm install -g semantic-release @semantic-release/changelog @semantic-release/git @semantic-release/github
+
+      - name: Run semantic-release
+        id: semantic-release
+        env:
+          GITHUB_TOKEN: ${{ secrets.SEMANTIC_RELEASE_TOKEN }}
+        run: semantic-release
+
+      - name: Release Summary
+        if: always()
+        run: |
+          echo "### Release Results" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.semantic-release.outcome }}" = "success" ]; then
+            echo "✅ Release created successfully" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Release failed" >> $GITHUB_STEP_SUMMARY
+          fi
