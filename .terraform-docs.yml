@@ -1,6 +1,6 @@
 version: ">= 0.18"
 
-formatter: "markdown table"
+formatter: "markdown"
 
 recursive:
   enabled: false
