@@ -18,12 +18,12 @@ This repository uses [Conventional Commits](https://www.conventionalcommits.org/
 |------|-------------|--------------|
 | `feat` | New feature or module | Minor (1.x.0) |
 | `fix` | Bug fix | Patch (1.0.x) |
-| `docs` | Documentation changes | Patch (1.0.x) |
-| `style` | Code formatting (no logic changes) | Patch (1.0.x) |
-| `refactor` | Code refactoring | Patch (1.0.x) |
-| `test` | Adding or updating tests | Patch (1.0.x) |
-| `chore` | Maintenance tasks | Patch (1.0.x) |
-| `ci` | CI/CD changes | Patch (1.0.x) |
+| `docs` | Documentation changes | None (no release) |
+| `style` | Code formatting (no logic changes) | None (no release) |
+| `refactor` | Code refactoring | None (no release) |
+| `test` | Adding or updating tests | None (no release) |
+| `chore` | Maintenance tasks | None (no release) |
+| `ci` | CI/CD changes | None (no release) |
 
 ## Breaking Changes
 
@@ -89,6 +89,7 @@ Use scopes to indicate which module category is affected:
 ## No Release Scenarios
 
 These commit types will **not** trigger a release:
+- `docs`, `style`, `refactor`, `test`, `chore` and `ci` commits (only `feat`, `fix`, `perf` and breaking changes release)
 - Commits without conventional format
 - Commits with `[skip ci]` in the message
 - Merge commits from automated tools
